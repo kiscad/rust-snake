@@ -8,15 +8,16 @@ use crossterm::{
 use rand::Rng;
 use std::collections::VecDeque;
 use std::io::{stdout, Write};
-use std::{thread, time};
+use std::{thread, time::{Duration, Instant}};
 
 const CELL_SZ: (u16, u16) = (2, 1);
-const GROUND_SZ: (u16, u16) = (64, 32);
+const GND_SZ: (u16, u16) = (64, 32);
+const TIME_STEP: u64 = 150; // game state refresh timestep in milliseconds
 
 #[derive(Debug, Eq, PartialEq)]
 struct Cell {
-    pos: (u16, u16), // (horz, vert)
-    size: (u16, u16),
+    pos: (u16, u16), // (horizontal coord, vertical coord)
+    size: (u16, u16), // (horizontal length, vertical length)
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -139,11 +140,10 @@ struct Wall {
 
 impl Wall {
     pub fn new() -> Self {
-        let top_wall = (0..GROUND_SZ.0 / CELL_SZ.0).map(|i| (i * CELL_SZ.0, CELL_SZ.1));
-        let btm_wall = (0..GROUND_SZ.0 / CELL_SZ.0).map(|i| (i * CELL_SZ.0, GROUND_SZ.1));
-        let lft_wall = (2..GROUND_SZ.1 / CELL_SZ.1).map(|i| (0, i * CELL_SZ.1));
-        let rht_wall =
-            (2..GROUND_SZ.1 / CELL_SZ.1).map(|i| (GROUND_SZ.0 - CELL_SZ.0, i * CELL_SZ.1));
+        let top_wall = (0..GND_SZ.0 / CELL_SZ.0).map(|i| (i * CELL_SZ.0, CELL_SZ.1));
+        let btm_wall = (0..GND_SZ.0 / CELL_SZ.0).map(|i| (i * CELL_SZ.0, GND_SZ.1));
+        let lft_wall = (2..GND_SZ.1 / CELL_SZ.1).map(|i| (0, i * CELL_SZ.1));
+        let rht_wall = (2..GND_SZ.1 / CELL_SZ.1).map(|i| (GND_SZ.0 - CELL_SZ.0, i * CELL_SZ.1));
         Self {
             cells: top_wall
                 .chain(lft_wall)
@@ -167,6 +167,8 @@ struct Game {
     snake: Snake,
     food: Cell,
     score: u16,
+    time: Instant,
+    time_step: Duration,
     is_over: bool,
 }
 
@@ -174,9 +176,11 @@ impl Game {
     pub fn new() -> Self {
         Self {
             wall: Wall::new(),
-            snake: Snake::new((GROUND_SZ.0 / 2, GROUND_SZ.1 / 2), Direction::Right, 3),
+            snake: Snake::new((GND_SZ.0 / 2, GND_SZ.1 / 2), Direction::Right, 3),
             food: Cell::new(30, 30),
             score: 0,
+            time: Instant::now(),
+            time_step: Duration::from_millis(TIME_STEP),
             is_over: false,
         }
     }
@@ -187,8 +191,8 @@ impl Game {
     }
 
     pub fn update_food_pos(&mut self) {
-        let x = rand::thread_rng().gen_range(1..GROUND_SZ.0 / CELL_SZ.0 - 1) * CELL_SZ.0;
-        let y = rand::thread_rng().gen_range(2..GROUND_SZ.1 / CELL_SZ.1 - 1) * CELL_SZ.1;
+        let x = rand::thread_rng().gen_range(1..GND_SZ.0 / CELL_SZ.0 - 1) * CELL_SZ.0;
+        let y = rand::thread_rng().gen_range(2..GND_SZ.1 / CELL_SZ.1 - 1) * CELL_SZ.1;
         self.food.pos = (x, y);
     }
 
@@ -216,68 +220,68 @@ impl Game {
         Ok(())
     }
 
+    fn process_event(&mut self) -> Result<()> {
+        if event::poll(Duration::from_millis(0))? {
+            match event::read()? {
+                Event::Key(KeyEvent {code: KeyCode::Up, ..}) => {
+                    if self.snake.dir != Direction::Down {
+                        self.snake.dir = Direction::Up;
+                    }
+                }
+                Event::Key(KeyEvent {code: KeyCode::Down, ..}) => {
+                    if self.snake.dir != Direction::Up {
+                        self.snake.dir = Direction::Down;
+                    }
+                }
+                Event::Key(KeyEvent {code: KeyCode::Left, ..}) => {
+                    if self.snake.dir != Direction::Right {
+                        self.snake.dir = Direction::Left;
+                    }
+                }
+                Event::Key(KeyEvent {code: KeyCode::Right, ..}) => {
+                    if self.snake.dir != Direction::Left {
+                        self.snake.dir = Direction::Right;
+                    }
+                }
+                Event::Key(KeyEvent {code: KeyCode::Char('q'), ..}) => self.is_over = true,
+                _ => (),
+            };
+            // flush bufferred events
+            while event::poll(Duration::from_millis(0))? {
+                event::read()?;
+            }
+        }
+        Ok(())
+    }
+
+    fn update_game_state(&mut self) {
+        if self.snake.check_bite_body() || self.snake.check_collide_wall(&self.wall) {
+            self.is_over = true;
+        }
+        if self.snake.check_bite_food(&self.food) {
+            self.score += 1;
+            self.snake.grow_body();
+            // generate new food: update food position
+            loop {
+                self.update_food_pos();
+                if !self.snake.check_overlap_food(&self.food) {
+                    break;
+                }
+            }
+        } else {
+            self.snake.move_body();
+        }
+    }
+
     pub fn looping<T: Write>(&mut self, buffer: &mut T) -> Result<()> {
         while !self.is_over {
             self.render(buffer)?;
-            // processing events
-            if event::poll(time::Duration::from_millis(0))? {
-                match event::read()? {
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Up, ..
-                    }) => {
-                        if self.snake.dir != Direction::Down {
-                            self.snake.dir = Direction::Up;
-                        }
-                    }
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Down,
-                        ..
-                    }) => {
-                        if self.snake.dir != Direction::Up {
-                            self.snake.dir = Direction::Down;
-                        }
-                    }
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Left,
-                        ..
-                    }) => {
-                        if self.snake.dir != Direction::Right {
-                            self.snake.dir = Direction::Left;
-                        }
-                    }
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Right,
-                        ..
-                    }) => {
-                        if self.snake.dir != Direction::Left {
-                            self.snake.dir = Direction::Right;
-                        }
-                    }
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('q'),
-                        ..
-                    }) => self.is_over = true,
-                    _ => (),
-                }
+            self.process_event()?;
+            if self.time.elapsed() > self.time_step {
+                self.update_game_state();
+                self.time = Instant::now();
             }
-            // update game state
-            if self.snake.check_bite_body() || self.snake.check_collide_wall(&self.wall) {
-                self.is_over = true;
-            }
-            if self.snake.check_bite_food(&self.food) {
-                self.score += 1;
-                self.snake.grow_body();
-                // generate new food: update food position
-                loop {
-                    self.update_food_pos();
-                    if !self.snake.check_overlap_food(&self.food) {
-                        break;
-                    }
-                }
-            } else {
-                self.snake.move_body();
-            }
-            thread::sleep(time::Duration::from_millis(200));
+            thread::sleep(self.time_step / 2); // screen refreshing rate
         }
         Ok(())
     }
@@ -287,6 +291,5 @@ fn main() -> Result<()> {
     let mut buffer = stdout();
     let mut game = Game::new();
     game.looping(&mut buffer)?;
-
     Ok(())
 }
