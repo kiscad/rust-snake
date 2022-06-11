@@ -26,8 +26,11 @@ snake 需要实现 `move_body`, `grow_body`，`check_bite_food`, `check_bite_sel
 ### 2.2 Crates
 
 - Crossterm
+
     Crossterm 是一个终端控制库，可用来实现 Text User Interface，除了可以显示风格化的字符与符号，还可以响应一些外部事件，如鼠标、键盘和窗口缩放。基本的使用可以参考其[文档](https://docs.rs/crossterm/0.23.2/crossterm/)。绘图命令的执行方式建议使用 `queue!` 的 Lazy 执行方式。
+
 - rand
+
     生成指定范围内的随机整数：`rand.thread_rng().gen_range(start .. end)`
 
 ## 3. 关键代码片断
