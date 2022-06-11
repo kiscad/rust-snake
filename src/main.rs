@@ -246,7 +246,7 @@ impl Game {
                 Event::Key(KeyEvent {code: KeyCode::Char('q'), ..}) => self.is_over = true,
                 _ => (),
             };
-            // flush bufferred events
+            // flush bufferred events before next loop
             while event::poll(Duration::from_millis(0))? {
                 event::read()?;
             }
