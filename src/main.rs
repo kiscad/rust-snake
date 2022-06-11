@@ -140,9 +140,9 @@ struct Wall {
 
 impl Wall {
     pub fn new() -> Self {
-        let top_wall = (0..GND_SZ.0 / CELL_SZ.0).map(|i| (i * CELL_SZ.0, CELL_SZ.1));
-        let btm_wall = (0..GND_SZ.0 / CELL_SZ.0).map(|i| (i * CELL_SZ.0, GND_SZ.1));
-        let lft_wall = (2..GND_SZ.1 / CELL_SZ.1).map(|i| (0, i * CELL_SZ.1));
+        let top_wall = (1..GND_SZ.0 / CELL_SZ.0).map(|i| (i * CELL_SZ.0, CELL_SZ.1));
+        let btm_wall = (1..GND_SZ.0 / CELL_SZ.0).map(|i| (i * CELL_SZ.0, GND_SZ.1));
+        let lft_wall = (2..GND_SZ.1 / CELL_SZ.1).map(|i| (CELL_SZ.0, i * CELL_SZ.1));
         let rht_wall = (2..GND_SZ.1 / CELL_SZ.1).map(|i| (GND_SZ.0 - CELL_SZ.0, i * CELL_SZ.1));
         Self {
             cells: top_wall
