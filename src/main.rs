@@ -8,7 +8,10 @@ use crossterm::{
 use rand::Rng;
 use std::collections::VecDeque;
 use std::io::{stdout, Write};
-use std::{thread, time::{Duration, Instant}};
+use std::{
+    thread,
+    time::{Duration, Instant},
+};
 
 const CELL_SZ: (u16, u16) = (2, 1);
 const GND_SZ: (u16, u16) = (64, 32);
@@ -16,7 +19,7 @@ const TIME_STEP: u64 = 150; // game state refresh timestep in milliseconds
 
 #[derive(Debug, Eq, PartialEq)]
 struct Cell {
-    pos: (u16, u16), // (horizontal coord, vertical coord)
+    pos: (u16, u16),  // (horizontal coord, vertical coord)
     size: (u16, u16), // (horizontal length, vertical length)
 }
 
@@ -223,27 +226,41 @@ impl Game {
     fn process_event(&mut self) -> Result<()> {
         if event::poll(Duration::from_millis(0))? {
             match event::read()? {
-                Event::Key(KeyEvent {code: KeyCode::Up, ..}) => {
+                Event::Key(KeyEvent {
+                    code: KeyCode::Up, ..
+                }) => {
                     if self.snake.dir != Direction::Down {
                         self.snake.dir = Direction::Up;
                     }
                 }
-                Event::Key(KeyEvent {code: KeyCode::Down, ..}) => {
+                Event::Key(KeyEvent {
+                    code: KeyCode::Down,
+                    ..
+                }) => {
                     if self.snake.dir != Direction::Up {
                         self.snake.dir = Direction::Down;
                     }
                 }
-                Event::Key(KeyEvent {code: KeyCode::Left, ..}) => {
+                Event::Key(KeyEvent {
+                    code: KeyCode::Left,
+                    ..
+                }) => {
                     if self.snake.dir != Direction::Right {
                         self.snake.dir = Direction::Left;
                     }
                 }
-                Event::Key(KeyEvent {code: KeyCode::Right, ..}) => {
+                Event::Key(KeyEvent {
+                    code: KeyCode::Right,
+                    ..
+                }) => {
                     if self.snake.dir != Direction::Left {
                         self.snake.dir = Direction::Right;
                     }
                 }
-                Event::Key(KeyEvent {code: KeyCode::Char('q'), ..}) => self.is_over = true,
+                Event::Key(KeyEvent {
+                    code: KeyCode::Char('q'),
+                    ..
+                }) => self.is_over = true,
                 _ => (),
             };
             // flush bufferred events before next loop
@@ -288,6 +305,7 @@ impl Game {
 }
 
 fn main() -> Result<()> {
+    terminal::enable_raw_mode().expect("Could not turn on raw mode.");
     let mut buffer = stdout();
     let mut game = Game::new();
     game.looping(&mut buffer)?;
