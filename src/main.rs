@@ -305,9 +305,10 @@ impl Game {
 }
 
 fn main() -> Result<()> {
-    terminal::enable_raw_mode().expect("Could not turn on raw mode.");
+    terminal::enable_raw_mode()?;
     let mut buffer = stdout();
     let mut game = Game::new();
     game.looping(&mut buffer)?;
+    terminal::disable_raw_mode()?;
     Ok(())
 }

@@ -193,5 +193,5 @@ fn update_game_state(&mut self) {
 
 - 在 Windows 系统上，Terminal，PowerShell，CMD 测试都没问题，Terminal 效果最好。
 - 在 macos 系统内，corssterm 无法响应外部事件，我测试了 Terminal, iTerm2 两个终端都不行。看了 crossterm 的[介绍文档](https://crates.io/crates/crossterm)，测试的 terminal 确实不包括 Macos 系统上的 terminal。
-  - 根据同事建议，在程序开始处加上 `terminal::enable_raw_mode().expect("Could not turn on raw mode.");` 可以解决 Linux/Unix 上事件响应的问题。
+  - 后续：在程序开始处加上 `terminal::enable_raw_mode()?;` 可以解决 Linux/Unix 上外部事件无法响应的问题。
 - 屏幕刷新频次低，有频闪的感觉，没有办法解决。
